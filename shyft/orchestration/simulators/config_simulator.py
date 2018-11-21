@@ -165,16 +165,15 @@ class ConfigCalibrator(simulator.DefaultSimulator):
 
     def save_calibrated_model(self, optim_param, outfile=None):
         """Save calibrated params in a model-like YAML file."""
-        name_map = {"pt": "priestley_taylor", "kirchner": "kirchner", "p_corr": "precipitation_correction",
-                    "ae": "actual_evapotranspiration", "gs": "gamma_snow", "ss": "skaugen_snow", "hs": "hbv_snow","gm":"glacier_melt",
-                    "ae": "hbv_actual_evapotranspiration", "soil": "hbv_soil", "tank": "hbv_tank","routing":"routing","msp":"msp"
-                    }
+
         model_file = self.model_config_file
         model_dict = yaml.load(open(model_file))
         model_params = {}
-        [model_params[name_map[r]].update({p: getattr(getattr(optim_param, r), p)})
-         if name_map[r] in model_params else model_params.update(
-            {name_map[r]: {p: getattr(getattr(optim_param, r), p)}}) for r, p in [nm.split('.') for nm in self.calib_param_names]]
+        # update all params, not just the ones that were optimized.
+        [model_params[r].update({p: getattr(getattr(optim_param, r), p)}) if r in model_params
+         else model_params.update( {r: {p: getattr(getattr(optim_param, r), p)}}) for r, p in
+         [nm.split('.') for nm in self.calib_param_names]]
+
         model_dict.update({'model_parameters': model_params})
         # Save the update parameters on disk
         if outfile is not None:
@@ -182,11 +181,11 @@ class ConfigCalibrator(simulator.DefaultSimulator):
         if not os.path.isabs(self.calibrated_model_file):
             self.calibrated_model_file = os.path.join(os.path.dirname(model_file), self.calibrated_model_file)
         print("Storing calibrated params in:", self.calibrated_model_file)
-        cls_rep_str = '!!python/name:'+model_dict['model_t'].__module__+'.'+model_dict['model_t'].__name__
+        cls_rep_str = '!!python/name:' + model_dict['model_t'].__module__ + '.' + model_dict['model_t'].__name__
         model_dict['model_t'] = cls_rep_str
         with open(self.calibrated_model_file, "w") as out:
             out.write("# This file has been automatically generated after a calibration run\n")
-            out.write(yaml.dump(model_dict, default_flow_style=False).replace("'"+cls_rep_str+"'",cls_rep_str))
+            out.write(yaml.dump(model_dict, default_flow_style=False).replace("'" + cls_rep_str + "'", cls_rep_str))
 
     def run_calibrated_model(self):
         if self.optimum_parameters is None:
